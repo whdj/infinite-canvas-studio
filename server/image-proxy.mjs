@@ -83,23 +83,25 @@ const server = createServer(async (request, response) => {
     }
 
     const result = await providerResponse.json()
-    const item = result?.data?.[0] || result
-    if (item?.b64_json) {
-      response.writeHead(200, { 'Content-Type': 'image/png' })
-      response.end(Buffer.from(item.b64_json, 'base64'))
+    const items = Array.isArray(result?.data) ? result.data : [result]
+    const output = []
+    for (const item of items) {
+      if (item?.b64_json) {
+        output.push({ b64_json: item.b64_json, mimeType: item.mimeType || 'image/png' })
+        continue
+      }
+      if (item?.url) {
+        const imageResponse = await fetch(item.url)
+        if (!imageResponse.ok) throw new Error('图像服务返回的图片地址无法下载。')
+        const mimeType = imageResponse.headers.get('content-type') || 'image/png'
+        const data = Buffer.from(await imageResponse.arrayBuffer()).toString('base64')
+        output.push({ b64_json: data, mimeType })
+      }
+    }
+    if (output.length > 0) {
+      sendJson(response, 200, { data: output })
       return
     }
-
-    if (item?.url) {
-      const imageResponse = await fetch(item.url)
-      if (!imageResponse.ok) throw new Error('图像服务返回的图片地址无法下载。')
-      response.writeHead(200, {
-        'Content-Type': imageResponse.headers.get('content-type') || 'image/png',
-      })
-      response.end(Buffer.from(await imageResponse.arrayBuffer()))
-      return
-    }
-
     sendJson(response, 502, { error: '图像服务没有返回 url 或 b64_json。' })
   } catch (error) {
     sendJson(response, 500, {

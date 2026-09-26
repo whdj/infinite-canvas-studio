@@ -12,6 +12,7 @@ Framefield 是一个本地优先的 AI 无限画布工作台，用于组织灵�
 - 完整项目 JSON 导入与导出
 - 浅色与深色主题
 - 可接入自定义 AI 图像生成后端
+- 单次生成 1-4 张图片并自动排列结果，支持取消和失败重试
 
 ## 本地运行
 
@@ -72,7 +73,7 @@ curl http://localhost:8787/health
 {"ok":true,"configured":true,"model":"your-image-model-id"}
 ```
 
-目前代理调用的是 OpenAI 风格的 `POST {BASE_URL}/images/generations`，请求体为 `{ "model", "prompt", "n" }`，并能识别以下返回格式：
+目前代理调用的是 OpenAI 风格的 `POST {BASE_URL}/images/generations`，请求体为 `{ "model", "prompt", "n", "size", "quality" }`，并能识别以下返回格式：
 
 - 直接返回图片响应
 - `{ "url": "https://..." }`

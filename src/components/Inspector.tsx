@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle, Clock, Info, Plug, WarningCircle } from '@phosphor-icons/react'
+import { ArrowClockwise, CheckCircle, Clock, Info, Plug, Stop, WarningCircle } from '@phosphor-icons/react'
 import { useCanvasStore } from '../store/canvasStore'
 
 export function Inspector() {
   const nodes = useCanvasStore((state) => state.nodes)
   const jobs = useCanvasStore((state) => state.jobs)
+  const cancelGeneration = useCanvasStore((state) => state.cancelGeneration)
+  const retryGeneration = useCanvasStore((state) => state.retryGeneration)
   const generationSettings = useCanvasStore((state) => state.generationSettings)
   const setGenerationSettings = useCanvasStore((state) => state.setGenerationSettings)
   const selected = useMemo(() => nodes.filter((node) => node.selected), [nodes])
@@ -49,8 +51,13 @@ export function Inspector() {
                 <JobIcon status={job.status} />
                 <div>
                   <strong>{job.prompt}</strong>
-                  <span>{job.error ?? jobLabel(job.status)}</span>
+                  <span>{job.error ?? jobLabel(job.status, job.resultNodeIds?.length)}</span>
                 </div>
+                {job.status === 'running' ? (
+                  <button type="button" className="job-control" aria-label="取消生成" title="取消生成" onClick={() => cancelGeneration(job.id)}><Stop size={13} weight="fill" /></button>
+                ) : job.status === 'failed' || job.status === 'cancelled' ? (
+                  <button type="button" className="job-control" aria-label="重试生成" title="重试生成" onClick={() => void retryGeneration(job.id)}><ArrowClockwise size={13} /></button>
+                ) : null}
               </article>
             ))}
           </div>
@@ -71,7 +78,7 @@ export function Inspector() {
 }
 
 interface GenerationSettingsPanelProps {
-  settings: { model: string; size: string; quality: string }
+  settings: { model: string; size: string; quality: string; count: number }
   onChange: (settings: Partial<GenerationSettingsPanelProps['settings']>) => void
 }
 
@@ -125,6 +132,15 @@ function GenerationSettingsPanel({ settings, onChange }: GenerationSettingsPanel
           <option value="hd">高清</option>
         </select>
       </label>
+      <label>
+        <span>生成数量</span>
+        <select value={settings.count} onChange={(event) => onChange({ count: Number(event.target.value) })}>
+          <option value={1}>1 张</option>
+          <option value={2}>2 张</option>
+          <option value={3}>3 张</option>
+          <option value={4}>4 张</option>
+        </select>
+      </label>
       <small className={`health-status ${health}`}>
         {health === 'online' ? '代理服务可用' : health === 'offline' ? '无法连接代理' : '设置保存在当前浏览器'}
       </small>
@@ -138,8 +154,8 @@ function JobIcon({ status }: { status: string }) {
   return <Clock size={17} className="running" />
 }
 
-function jobLabel(status: string): string {
-  if (status === 'success') return '图片已添加到画布'
+function jobLabel(status: string, resultCount?: number): string {
+  if (status === 'success') return `${resultCount ?? 1} 张图片已添加到画布`
   if (status === 'running') return '正在等待生成结果'
   return '等待处理'
 }

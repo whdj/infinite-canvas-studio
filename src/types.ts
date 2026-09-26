@@ -3,7 +3,7 @@ import type { Edge, Node, Viewport, XYPosition } from '@xyflow/react'
 export const SCHEMA_VERSION = 1
 
 export type CanvasNodeKind = 'text' | 'prompt' | 'image' | 'group'
-export type GenerationStatus = 'queued' | 'running' | 'success' | 'failed'
+export type GenerationStatus = 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
 
 export interface CanvasNodeData extends Record<string, unknown> {
   kind: CanvasNodeKind
@@ -28,6 +28,7 @@ export interface GenerationJob {
   createdAt: string
   updatedAt: string
   resultNodeId?: string
+  resultNodeIds?: string[]
   error?: string
 }
 
@@ -35,6 +36,7 @@ export interface GenerationSettings {
   model: string
   size: string
   quality: string
+  count: number
 }
 
 export interface CanvasDocument {

@@ -1,29 +1,32 @@
 interface ImageApiResult {
   url?: string
   b64_json?: string
-  data?: Array<{ url?: string; b64_json?: string }>
+  mimeType?: string
+  data?: Array<{ url?: string; b64_json?: string; mimeType?: string }>
 }
 
 export interface ImageGenerationOptions {
   model?: string
   size?: string
   quality?: string
+  count?: number
 }
 
-export async function generateImage(
+export async function generateImages(
   prompt: string,
   options: ImageGenerationOptions = {},
   signal?: AbortSignal,
-): Promise<{ blob: Blob; fileName: string }> {
+): Promise<Array<{ blob: Blob; fileName: string }>> {
   const endpoint = import.meta.env.VITE_IMAGE_API_URL?.trim()
   if (!endpoint) {
     throw new Error('尚未配置图像生成服务。请在 .env.local 中设置 VITE_IMAGE_API_URL。')
   }
 
+  const { count, ...providerOptions } = options
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, n: 1, ...options }),
+    body: JSON.stringify({ prompt, n: count ?? 1, ...providerOptions }),
     signal,
   })
 
@@ -35,27 +38,32 @@ export async function generateImage(
   const contentType = response.headers.get('content-type') ?? ''
   if (contentType.startsWith('image/')) {
     const blob = await response.blob()
-    return { blob, fileName: `generated-${Date.now()}.${extensionFor(blob.type)}` }
+    return [{ blob, fileName: `generated-${Date.now()}.${extensionFor(blob.type)}` }]
   }
 
   const result = (await response.json()) as ImageApiResult
-  const item = result.data?.[0] ?? result
+  const items = result.data?.length ? result.data : [result]
+  const outputs = await Promise.all(items.map(async (item, index) => {
+    if (item.b64_json) {
+      const binary = atob(item.b64_json)
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+      const mimeType = item.mimeType || 'image/png'
+      const blob = new Blob([bytes], { type: mimeType })
+      return { blob, fileName: `generated-${Date.now()}-${index + 1}.${extensionFor(mimeType)}` }
+    }
 
-  if (item.b64_json) {
-    const binary = atob(item.b64_json)
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
-    const blob = new Blob([bytes], { type: 'image/png' })
-    return { blob, fileName: `generated-${Date.now()}.png` }
-  }
+    if (item.url) {
+      const imageResponse = await fetch(item.url, { signal })
+      if (!imageResponse.ok) throw new Error('生成成功，但图片下载失败。请检查跨域设置。')
+      const blob = await imageResponse.blob()
+      return { blob, fileName: `generated-${Date.now()}-${index + 1}.${extensionFor(blob.type)}` }
+    }
 
-  if (item.url) {
-    const imageResponse = await fetch(item.url)
-    if (!imageResponse.ok) throw new Error('生成成功，但图片下载失败。请检查跨域设置。')
-    const blob = await imageResponse.blob()
-    return { blob, fileName: `generated-${Date.now()}.${extensionFor(blob.type)}` }
-  }
+    throw new Error('生成服务没有返回可识别的图片。')
+  }))
 
-  throw new Error('生成服务没有返回可识别的图片。')
+  if (outputs.length === 0) throw new Error('生成服务没有返回图片。')
+  return outputs
 }
 
 function extensionFor(mimeType: string): string {

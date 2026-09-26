@@ -22,6 +22,7 @@ export const defaultGenerationSettings: GenerationSettings = {
   model: '',
   size: '1024x1024',
   quality: 'standard',
+  count: 1,
 }
 
 export function createStarterDocument(title = '灵感画布'): CanvasDocument {

@@ -172,6 +172,8 @@ button:disabled { cursor: not-allowed; }
 .job-row svg.failed { color: #bb5748; }
 .job-row svg.running { color: var(--accent); animation: spin 1.4s linear infinite; }
 .job-row > div { display: grid; gap: 4px; min-width: 0; }
+.job-control { display: grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; margin-left: auto; color: var(--text-muted); background: transparent; border-radius: 5px; }
+.job-control:hover { color: var(--accent); background: var(--surface-muted); }
 .job-row strong { display: -webkit-box; overflow: hidden; color: var(--text-muted); font-size: 10px; font-weight: 600; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .job-row span { color: var(--text-faint); font-size: 9px; }
 .connector-note { display: grid; gap: 6px; margin: 17px 18px; padding: 11px; background: var(--surface-muted); border-radius: 8px; }

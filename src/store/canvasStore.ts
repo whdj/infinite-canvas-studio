@@ -10,7 +10,7 @@ import {
 } from '@xyflow/react'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
-import { generateImage } from '../lib/ai'
+import { generateImages } from '../lib/ai'
 import { createStarterDocument, db, defaultGenerationSettings, storeAsset } from '../lib/db'
 import type {
   AddNodeOptions,
@@ -71,13 +71,16 @@ interface CanvasState {
   undo: () => void
   redo: () => void
   startJob: (nodeId: string, prompt: string) => string
-  finishJob: (jobId: string, result: { resultNodeId?: string; error?: string }) => void
+  finishJob: (jobId: string, result: { resultNodeId?: string; resultNodeIds?: string[]; error?: string }) => void
   setGenerationSettings: (settings: Partial<GenerationSettings>) => void
   runGeneration: (nodeId: string) => Promise<void>
+  cancelGeneration: (jobId: string) => void
+  retryGeneration: (jobId: string) => Promise<void>
   openLightbox: (assetId: string | null) => void
 }
 
 const defaultViewport: Viewport = { x: 0, y: 0, zoom: 1 }
+const generationControllers = new Map<string, AbortController>()
 
 function takeSnapshot(state: Pick<CanvasState, 'nodes' | 'edges'>): CanvasSnapshot {
   return {
@@ -631,21 +634,59 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const prompt = node?.data.content?.trim()
     if (!node || !prompt || node.data.generationStatus === 'running') return
     const jobId = get().startJob(nodeId, prompt)
+    const controller = new AbortController()
+    generationControllers.set(jobId, controller)
+    const isCancelled = () => get().jobs.find((job) => job.id === jobId)?.status === 'cancelled'
     try {
-      const generated = await generateImage(prompt, get().generationSettings)
-      const asset = await storeAsset(generated.blob, generated.fileName)
+      const generated = await generateImages(prompt, get().generationSettings, controller.signal)
+      if (isCancelled()) return
       const source = get().nodes.find((item) => item.id === nodeId) ?? node
-      const resultNodeId = get().addImageNode(
-        asset,
-        { x: source.position.x + 420, y: source.position.y },
-        nodeId,
-      )
-      get().finishJob(jobId, { resultNodeId })
+      const resultNodeIds: string[] = []
+      for (const [index, result] of generated.entries()) {
+        if (isCancelled()) return
+        const asset = await storeAsset(result.blob, result.fileName)
+        resultNodeIds.push(get().addImageNode(
+          asset,
+          {
+            x: source.position.x + 420 + (index % 2) * 400,
+            y: source.position.y + Math.floor(index / 2) * 360,
+          },
+          nodeId,
+        ))
+      }
+      get().finishJob(jobId, { resultNodeIds, resultNodeId: resultNodeIds[0] })
     } catch (error) {
+      if (isCancelled()) return
       get().finishJob(jobId, {
         error: error instanceof Error ? error.message : '生成失败，请稍后重试。',
       })
+    } finally {
+      generationControllers.delete(jobId)
     }
+  },
+
+  cancelGeneration: (jobId) => {
+    generationControllers.get(jobId)?.abort()
+    set((state) => {
+      const job = state.jobs.find((item) => item.id === jobId)
+      if (!job || job.status !== 'running') return state
+      return {
+        jobs: state.jobs.map((item) =>
+          item.id === jobId ? { ...item, status: 'cancelled', updatedAt: new Date().toISOString() } : item,
+        ),
+        nodes: state.nodes.map((node) =>
+          node.id === job.nodeId
+            ? { ...node, data: { ...node.data, generationStatus: 'cancelled' } }
+            : node,
+        ),
+      }
+    })
+  },
+
+  retryGeneration: async (jobId) => {
+    const job = get().jobs.find((item) => item.id === jobId)
+    if (!job || (job.status !== 'failed' && job.status !== 'cancelled')) return
+    await get().runGeneration(job.nodeId)
   },
 
   openLightbox: (assetId) => set({ lightboxAssetId: assetId }),
