@@ -18,7 +18,7 @@ const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') {
     sendJson(response, 200, {
       ok: true,
-      configured: Boolean(baseUrl && apiKey && model),
+      configured: Boolean(baseUrl && apiKey),
       model: model || null,
     })
     return
