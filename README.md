@@ -29,26 +29,57 @@ npm run build
 
 ## 配置 AI 图像生成
 
-复制环境变量示例：
+推荐使用仓库内置的本地代理。它把 API Key 留在 Node 进程里，浏览器只访问本地的 `/generate`。
+
+复制两个环境变量示例：
 
 ```bash
 cp .env.example .env.local
+cp .env.server.example .env.server
 ```
 
-然后设置：
+在 `.env.server` 中填写你的服务商信息：
 
 ```env
-VITE_IMAGE_API_URL=https://your-backend.example.com/generate
+IMAGE_API_BASE_URL=https://api.example.com/v1
+IMAGE_API_KEY=replace-with-your-key
+IMAGE_MODEL=your-image-model-id
+IMAGE_SIZE=
 ```
 
-该端点接收 JSON 请求 `{ "prompt": "...", "n": 1 }`，并可返回以下任一格式：
+然后在 `.env.local` 中设置：
+
+```env
+VITE_IMAGE_API_URL=http://localhost:8787/generate
+```
+
+启动两个终端：
+
+```bash
+npm run api
+npm run dev
+```
+
+检查代理配置：
+
+```bash
+curl http://localhost:8787/health
+```
+
+成功时会返回类似：
+
+```json
+{"ok":true,"configured":true,"model":"your-image-model-id"}
+```
+
+目前代理调用的是 OpenAI 风格的 `POST {BASE_URL}/images/generations`，请求体为 `{ "model", "prompt", "n" }`，并能识别以下返回格式：
 
 - 直接返回图片响应
 - `{ "url": "https://..." }`
 - `{ "b64_json": "..." }`
 - OpenAI 风格的 `{ "data": [{ "url": "..." }] }`
 
-请勿把供应商 API 密钥写入前端环境变量。应由你自己的后端端点保存密钥并代理生成请求。
+如果服务商不是 OpenAI 风格接口，先不要把 Key 发给我。把它的 Base URL、模型 ID、图像接口路径和返回示例告诉我，我会调整代理适配器。真实 Key 只放在你本机的 `.env.server` 中。
 
 ## 技术栈
 
