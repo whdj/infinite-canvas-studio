@@ -175,8 +175,18 @@ button:disabled { cursor: not-allowed; }
 .job-row strong { display: -webkit-box; overflow: hidden; color: var(--text-muted); font-size: 10px; font-weight: 600; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .job-row span { color: var(--text-faint); font-size: 9px; }
 .connector-note { display: grid; gap: 6px; margin: 17px 18px; padding: 11px; background: var(--surface-muted); border-radius: 8px; }
-.connector-note strong { font-size: 10px; }
+.connector-note strong { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; }
 .connector-note span { color: var(--text-muted); font-size: 9px; line-height: 1.5; }
+.generation-settings { display: grid; gap: 12px; }
+.generation-settings label { display: grid; gap: 6px; }
+.generation-settings label > span { color: var(--text-muted); font-family: 'DM Mono', monospace; font-size: 9px; }
+.generation-settings input, .generation-settings select { width: 100%; height: 31px; padding: 0 8px; color: var(--text); background: var(--surface-muted); border: 1px solid transparent; border-radius: 6px; outline: 0; font-size: 10px; }
+.generation-settings input:focus, .generation-settings select:focus { border-color: var(--accent); }
+.generation-settings input::placeholder { color: var(--text-faint); }
+.check-connection { padding: 5px 7px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 9px; }
+.health-status { color: var(--text-faint); font-size: 9px; }
+.health-status.online { color: var(--sage); }
+.health-status.offline { color: #bb5748; }
 
 .lightbox { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 6vh 6vw; background: rgb(20 21 19 / .84); backdrop-filter: blur(6px); }
 .lightbox > button { position: absolute; top: 22px; right: 24px; display: grid; place-items: center; width: 36px; height: 36px; color: #fff; background: rgb(255 255 255 / .12); border-radius: 8px; }

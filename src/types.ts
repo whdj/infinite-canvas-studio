@@ -31,6 +31,12 @@ export interface GenerationJob {
   error?: string
 }
 
+export interface GenerationSettings {
+  model: string
+  size: string
+  quality: string
+}
+
 export interface CanvasDocument {
   id: string
   schemaVersion: number
@@ -38,6 +44,7 @@ export interface CanvasDocument {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   jobs: GenerationJob[]
+  generationSettings?: GenerationSettings
   viewport: Viewport
   createdAt: string
   updatedAt: string

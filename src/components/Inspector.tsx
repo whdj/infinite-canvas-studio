@@ -1,10 +1,12 @@
-import { useMemo } from 'react'
-import { CheckCircle, Clock, Info, WarningCircle } from '@phosphor-icons/react'
+import { useMemo, useState } from 'react'
+import { CheckCircle, Clock, Info, Plug, WarningCircle } from '@phosphor-icons/react'
 import { useCanvasStore } from '../store/canvasStore'
 
 export function Inspector() {
   const nodes = useCanvasStore((state) => state.nodes)
   const jobs = useCanvasStore((state) => state.jobs)
+  const generationSettings = useCanvasStore((state) => state.generationSettings)
+  const setGenerationSettings = useCanvasStore((state) => state.setGenerationSettings)
   const selected = useMemo(() => nodes.filter((node) => node.selected), [nodes])
   const item = selected.length === 1 ? selected[0] : null
 
@@ -55,11 +57,78 @@ export function Inspector() {
         )}
       </section>
 
+      <GenerationSettingsPanel
+        settings={generationSettings}
+        onChange={setGenerationSettings}
+      />
+
       <section className="connector-note">
-        <strong>AI 连接器</strong>
+        <strong><Plug size={14} /> AI 连接器</strong>
         <span>{import.meta.env.VITE_IMAGE_API_URL ? '已连接自定义图像端点' : '未配置。可先使用画布和素材功能。'}</span>
       </section>
     </aside>
+  )
+}
+
+interface GenerationSettingsPanelProps {
+  settings: { model: string; size: string; quality: string }
+  onChange: (settings: Partial<GenerationSettingsPanelProps['settings']>) => void
+}
+
+function GenerationSettingsPanel({ settings, onChange }: GenerationSettingsPanelProps) {
+  const [health, setHealth] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle')
+  const endpoint = import.meta.env.VITE_IMAGE_API_URL?.trim() || ''
+
+  const checkConnection = async () => {
+    if (!endpoint) {
+      setHealth('offline')
+      return
+    }
+    setHealth('checking')
+    const healthUrl = endpoint.replace(/\/generate\/?$/, '/health')
+    try {
+      const response = await fetch(healthUrl)
+      setHealth(response.ok ? 'online' : 'offline')
+    } catch {
+      setHealth('offline')
+    }
+  }
+
+  return (
+    <section className="inspector-section generation-settings">
+      <div className="section-heading">
+        <h2>生成设置</h2>
+        <button type="button" className="check-connection" onClick={() => void checkConnection()}>
+          {health === 'checking' ? '检测中' : health === 'online' ? '已连接' : '检测'}
+        </button>
+      </div>
+      <label>
+        <span>模型 ID</span>
+        <input
+          value={settings.model}
+          placeholder="使用服务端默认模型"
+          onChange={(event) => onChange({ model: event.target.value })}
+        />
+      </label>
+      <label>
+        <span>画布尺寸</span>
+        <select value={settings.size} onChange={(event) => onChange({ size: event.target.value })}>
+          <option value="1024x1024">1024 x 1024</option>
+          <option value="1536x1024">1536 x 1024</option>
+          <option value="1024x1536">1024 x 1536</option>
+        </select>
+      </label>
+      <label>
+        <span>质量</span>
+        <select value={settings.quality} onChange={(event) => onChange({ quality: event.target.value })}>
+          <option value="standard">标准</option>
+          <option value="hd">高清</option>
+        </select>
+      </label>
+      <small className={`health-status ${health}`}>
+        {health === 'online' ? '代理服务可用' : health === 'offline' ? '无法连接代理' : '设置保存在当前浏览器'}
+      </small>
+    </section>
   )
 }
 

@@ -11,7 +11,7 @@ import {
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 import { generateImage } from '../lib/ai'
-import { createStarterDocument, db, storeAsset } from '../lib/db'
+import { createStarterDocument, db, defaultGenerationSettings, storeAsset } from '../lib/db'
 import type {
   AddNodeOptions,
   CanvasAsset,
@@ -22,6 +22,7 @@ import type {
   CanvasNodeKind,
   DocumentSummary,
   GenerationJob,
+  GenerationSettings,
 } from '../types'
 import { SCHEMA_VERSION } from '../types'
 
@@ -38,6 +39,7 @@ interface CanvasState {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   jobs: GenerationJob[]
+  generationSettings: GenerationSettings
   viewport: Viewport
   documents: DocumentSummary[]
   historyPast: CanvasSnapshot[]
@@ -67,6 +69,7 @@ interface CanvasState {
   redo: () => void
   startJob: (nodeId: string, prompt: string) => string
   finishJob: (jobId: string, result: { resultNodeId?: string; error?: string }) => void
+  setGenerationSettings: (settings: Partial<GenerationSettings>) => void
   runGeneration: (nodeId: string) => Promise<void>
   openLightbox: (assetId: string | null) => void
 }
@@ -104,9 +107,20 @@ function documentFromState(state: CanvasState): CanvasDocument | null {
     nodes: state.nodes,
     edges: state.edges,
     jobs: state.jobs,
+    generationSettings: state.generationSettings,
     viewport: state.viewport,
     createdAt: state.createdAt,
     updatedAt: new Date().toISOString(),
+  }
+}
+
+function readStoredGenerationSettings(): GenerationSettings {
+  if (typeof window === 'undefined') return defaultGenerationSettings
+  try {
+    const stored = JSON.parse(window.localStorage.getItem('framefield-generation-settings') || 'null')
+    return { ...defaultGenerationSettings, ...(stored && typeof stored === 'object' ? stored : {}) }
+  } catch {
+    return defaultGenerationSettings
   }
 }
 
@@ -118,6 +132,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   nodes: [],
   edges: [],
   jobs: [],
+  generationSettings: readStoredGenerationSettings(),
   viewport: defaultViewport,
   documents: [],
   historyPast: [],
@@ -141,6 +156,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: active.nodes,
       edges: active.edges,
       jobs: active.jobs ?? [],
+      generationSettings: active.generationSettings ?? readStoredGenerationSettings(),
       viewport: active.viewport ?? defaultViewport,
       documents: documents.map(summarize),
       historyPast: [],
@@ -161,6 +177,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: document.nodes,
       edges: document.edges,
       jobs: document.jobs ?? [],
+      generationSettings: document.generationSettings ?? readStoredGenerationSettings(),
       viewport: document.viewport ?? defaultViewport,
       historyPast: [],
       historyFuture: [],
@@ -182,6 +199,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: [],
       edges: [],
       jobs: [],
+      generationSettings: get().generationSettings,
       viewport: defaultViewport,
       documents: documents.map(summarize),
       historyPast: [],
@@ -209,6 +227,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: next.nodes,
       edges: next.edges,
       jobs: next.jobs ?? [],
+      generationSettings: next.generationSettings ?? get().generationSettings,
       viewport: next.viewport ?? defaultViewport,
       documents: remaining.map(summarize),
       historyPast: [],
@@ -219,6 +238,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   renameDocument: (title) => set({ title }),
+
+  setGenerationSettings: (settings) => {
+    set((state) => {
+      const next = { ...state.generationSettings, ...settings }
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('framefield-generation-settings', JSON.stringify(next))
+      }
+      return { generationSettings: next }
+    })
+  },
 
   saveCurrent: async () => {
     const state = get()
@@ -547,7 +576,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     if (!node || !prompt || node.data.generationStatus === 'running') return
     const jobId = get().startJob(nodeId, prompt)
     try {
-      const generated = await generateImage(prompt)
+      const generated = await generateImage(prompt, get().generationSettings)
       const asset = await storeAsset(generated.blob, generated.fileName)
       const source = get().nodes.find((item) => item.id === nodeId) ?? node
       const resultNodeId = get().addImageNode(

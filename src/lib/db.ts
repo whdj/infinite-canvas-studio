@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { nanoid } from 'nanoid'
-import type { CanvasAsset, CanvasDocument } from '../types'
+import type { CanvasAsset, CanvasDocument, GenerationSettings } from '../types'
 import { SCHEMA_VERSION } from '../types'
 
 class FramefieldDatabase extends Dexie {
@@ -17,6 +17,12 @@ class FramefieldDatabase extends Dexie {
 }
 
 export const db = new FramefieldDatabase()
+
+export const defaultGenerationSettings: GenerationSettings = {
+  model: '',
+  size: '1024x1024',
+  quality: 'standard',
+}
 
 export function createStarterDocument(title = '灵感画布'): CanvasDocument {
   const now = new Date().toISOString()

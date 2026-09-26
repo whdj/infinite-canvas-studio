@@ -4,7 +4,17 @@ interface ImageApiResult {
   data?: Array<{ url?: string; b64_json?: string }>
 }
 
-export async function generateImage(prompt: string): Promise<{ blob: Blob; fileName: string }> {
+export interface ImageGenerationOptions {
+  model?: string
+  size?: string
+  quality?: string
+}
+
+export async function generateImage(
+  prompt: string,
+  options: ImageGenerationOptions = {},
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; fileName: string }> {
   const endpoint = import.meta.env.VITE_IMAGE_API_URL?.trim()
   if (!endpoint) {
     throw new Error('尚未配置图像生成服务。请在 .env.local 中设置 VITE_IMAGE_API_URL。')
@@ -13,7 +23,8 @@ export async function generateImage(prompt: string): Promise<{ blob: Blob; fileN
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, n: 1 }),
+    body: JSON.stringify({ prompt, n: 1, ...options }),
+    signal,
   })
 
   if (!response.ok) {

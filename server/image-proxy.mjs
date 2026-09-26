@@ -29,9 +29,9 @@ const server = createServer(async (request, response) => {
     return
   }
 
-  if (!baseUrl || !apiKey || !model) {
+  if (!baseUrl || !apiKey) {
     sendJson(response, 500, {
-      error: '请先配置 IMAGE_API_BASE_URL、IMAGE_API_KEY、IMAGE_MODEL。',
+      error: '请先配置 IMAGE_API_BASE_URL 和 IMAGE_API_KEY。',
     })
     return
   }
@@ -44,11 +44,19 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : model
+    if (!requestedModel) {
+      sendJson(response, 400, { error: '请在 .env.server 或界面“生成设置”中配置 IMAGE_MODEL。' })
+      return
+    }
     const providerBody = {
-      model,
+      model: requestedModel,
       prompt,
       n: Number(body.n) > 0 ? Math.min(Number(body.n), 4) : 1,
-      ...(size ? { size } : {}),
+      ...(typeof body.size === 'string' && body.size.trim() ? { size: body.size.trim() } : size ? { size } : {}),
+      ...(typeof body.quality === 'string' && body.quality.trim()
+        ? { quality: body.quality.trim() }
+        : {}),
     }
     const providerResponse = await fetch(`${baseUrl}/images/generations`, {
       method: 'POST',
