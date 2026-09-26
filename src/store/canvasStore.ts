@@ -61,6 +61,9 @@ interface CanvasState {
   updateNodeData: (id: string, patch: Partial<CanvasNodeData>) => void
   deleteSelected: () => void
   duplicateSelected: () => void
+  copySelected: () => void
+  pasteClipboard: () => void
+  cutSelected: () => void
   groupSelected: () => void
   ungroupSelected: () => void
   beginInteraction: () => void
@@ -415,6 +418,59 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         edges: [...state.edges, ...copiedEdges],
       }
     })
+  },
+
+  copySelected: () => {
+    const state = get()
+    const selected = state.nodes.filter((node) => node.selected)
+    if (selected.length === 0 || typeof window === 'undefined') return
+    const selectedIds = new Set(selected.map((node) => node.id))
+    window.localStorage.setItem(
+      'framefield-clipboard',
+      JSON.stringify({
+        nodes: selected,
+        edges: state.edges.filter((edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target)),
+      }),
+    )
+  },
+
+  pasteClipboard: () => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem('framefield-clipboard')
+      if (!raw) return
+      const payload = JSON.parse(raw) as { nodes?: CanvasNode[]; edges?: CanvasEdge[] }
+      const sourceNodes = Array.isArray(payload.nodes) ? payload.nodes : []
+      if (sourceNodes.length === 0) return
+      const idMap = new Map(sourceNodes.map((node) => [node.id, nanoid()]))
+      const copies = sourceNodes.map((node) => ({
+        ...structuredClone(node),
+        id: idMap.get(node.id)!,
+        parentId: node.parentId && idMap.has(node.parentId) ? idMap.get(node.parentId) : undefined,
+        position: { x: node.position.x + 48, y: node.position.y + 48 },
+        selected: true,
+      }))
+      const copiedEdges = (payload.edges ?? [])
+        .filter((edge) => idMap.has(edge.source) && idMap.has(edge.target))
+        .map((edge) => ({
+          ...edge,
+          id: nanoid(),
+          source: idMap.get(edge.source)!,
+          target: idMap.get(edge.target)!,
+        }))
+      set((state) => ({
+        ...withHistory(state),
+        nodes: [...state.nodes.map((node) => ({ ...node, selected: false })), ...copies],
+        edges: [...state.edges, ...copiedEdges],
+      }))
+    } catch {
+      window.localStorage.removeItem('framefield-clipboard')
+    }
+  },
+
+  cutSelected: () => {
+    get().copySelected()
+    get().deleteSelected()
   },
 
   groupSelected: () => {

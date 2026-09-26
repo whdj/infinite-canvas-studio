@@ -49,6 +49,9 @@ function CanvasBoardInner() {
   const endInteraction = useCanvasStore((state) => state.endInteraction)
   const deleteSelected = useCanvasStore((state) => state.deleteSelected)
   const duplicateSelected = useCanvasStore((state) => state.duplicateSelected)
+  const copySelected = useCanvasStore((state) => state.copySelected)
+  const pasteClipboard = useCanvasStore((state) => state.pasteClipboard)
+  const cutSelected = useCanvasStore((state) => state.cutSelected)
   const undo = useCanvasStore((state) => state.undo)
   const redo = useCanvasStore((state) => state.redo)
   const { screenToFlowPosition, fitView } = useReactFlow()
@@ -80,6 +83,15 @@ function CanvasBoardInner() {
       } else if (command && event.key.toLowerCase() === 'd') {
         event.preventDefault()
         duplicateSelected()
+      } else if (command && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        copySelected()
+      } else if (command && event.key.toLowerCase() === 'x') {
+        event.preventDefault()
+        cutSelected()
+      } else if (command && event.key.toLowerCase() === 'v') {
+        event.preventDefault()
+        pasteClipboard()
       } else if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault()
         deleteSelected()
@@ -87,7 +99,7 @@ function CanvasBoardInner() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [deleteSelected, duplicateSelected, redo, undo])
+  }, [copySelected, cutSelected, deleteSelected, duplicateSelected, pasteClipboard, redo, undo])
 
   return (
     <main

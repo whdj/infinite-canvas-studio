@@ -3,7 +3,9 @@ import { CanvasBoard } from './components/CanvasBoard'
 import { Inspector } from './components/Inspector'
 import { Lightbox } from './components/Lightbox'
 import { ProjectSidebar } from './components/ProjectSidebar'
+import { ShortcutDialog } from './components/ShortcutDialog'
 import { Topbar } from './components/Topbar'
+import { downloadCanvasImage } from './lib/canvasExport'
 import { downloadProject, importProject } from './lib/projectFiles'
 import { getCurrentDocument, useCanvasStore } from './store/canvasStore'
 
@@ -21,6 +23,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved')
   const [notice, setNotice] = useState<string | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => initialTheme())
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
   const loadStartedRef = useRef(false)
 
@@ -73,6 +76,15 @@ export default function App() {
     }
   }
 
+  const handleExportImage = async () => {
+    try {
+      await downloadCanvasImage(nodes, title)
+      setNotice('画布图片已导出。')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : '导出图片失败。')
+    }
+  }
+
   if (!isReady) {
     return (
       <div className="app-loading">
@@ -104,11 +116,14 @@ export default function App() {
           onThemeToggle={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))}
           onExport={() => void handleExport()}
           onImport={() => importInputRef.current?.click()}
+          onExportImage={() => void handleExportImage()}
+          onShowShortcuts={() => setShowShortcuts(true)}
         />
         <CanvasBoard />
       </section>
       <Inspector />
       <Lightbox />
+      {showShortcuts ? <ShortcutDialog onClose={() => setShowShortcuts(false)} /> : null}
       {notice ? <div className="notice" role="status">{notice}</div> : null}
     </div>
   )

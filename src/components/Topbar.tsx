@@ -2,6 +2,8 @@ import {
   ArrowClockwise,
   ArrowCounterClockwise,
   DownloadSimple,
+  FileImage,
+  Keyboard,
   Moon,
   Sun,
   UploadSimple,
@@ -14,9 +16,11 @@ interface TopbarProps {
   onThemeToggle: () => void
   onExport: () => void
   onImport: () => void
+  onExportImage: () => void
+  onShowShortcuts: () => void
 }
 
-export function Topbar({ saveStatus, theme, onThemeToggle, onExport, onImport }: TopbarProps) {
+export function Topbar({ saveStatus, theme, onThemeToggle, onExport, onImport, onExportImage, onShowShortcuts }: TopbarProps) {
   const title = useCanvasStore((state) => state.title)
   const renameDocument = useCanvasStore((state) => state.renameDocument)
   const undo = useCanvasStore((state) => state.undo)
@@ -50,6 +54,12 @@ export function Topbar({ saveStatus, theme, onThemeToggle, onExport, onImport }:
         </IconButton>
         <IconButton label="导出项目" onClick={onExport}>
           <DownloadSimple size={17} />
+        </IconButton>
+        <IconButton label="导出画布图片" onClick={onExportImage}>
+          <FileImage size={17} />
+        </IconButton>
+        <IconButton label="快捷键" onClick={onShowShortcuts}>
+          <Keyboard size={17} />
         </IconButton>
         <IconButton label={theme === 'dark' ? '切换到浅色' : '切换到深色'} onClick={onThemeToggle}>
           {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
